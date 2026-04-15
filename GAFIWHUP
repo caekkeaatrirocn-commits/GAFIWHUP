@@ -1,0 +1,194 @@
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- ล้าง UI เก่า
+if playerGui:FindFirstChild("GafiwProjectX_V14") then
+    playerGui.GafiwProjectX_V14:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.Name = "GafiwProjectX_V14"
+screenGui.ResetOnSpawn = false
+
+-- --- [ CONFIG & STATES ] ---
+local mainColor = Color3.fromRGB(15, 15, 15)
+local accentColor = Color3.fromRGB(255, 255, 255)
+local currentTab = "Player"
+local xrayEnabled, airWalkEnabled, speedEnabled, reachEnabled, killAllEnabled = false, false, false, false, false
+local antiLagEnabled, lowGraphEnabled = false, false
+
+-- ตัวแปรเดินบนอากาศ
+local airPart = Instance.new("Part")
+airPart.Size = Vector3.new(15, 1, 15)
+airPart.Transparency = 1
+airPart.Anchored = true
+airPart.CanCollide = false
+
+-- --- [ UI ELEMENTS ] ---
+local toggleBtn = Instance.new("ImageButton", screenGui)
+toggleBtn.Size = UDim2.new(0, 60, 0, 60)
+toggleBtn.Position = UDim2.new(0.05, 0, 0.15, 0)
+toggleBtn.BackgroundColor3 = mainColor
+toggleBtn.Image = "https://share.google/XtDAvoftSNsdRQ3Wc"
+toggleBtn.ScaleType = Enum.ScaleType.Crop
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", toggleBtn).Color = accentColor
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 300, 0, 500)
+frame.Position = UDim2.new(0.5, -150, 0.5, -250)
+frame.BackgroundColor3 = mainColor
+frame.Visible = false
+frame.ClipsDescendants = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 20)
+Instance.new("UIStroke", frame).Color = Color3.fromRGB(60, 60, 60)
+
+-- เอฟเฟกต์หิมะ
+local function createSnow()
+    local snow = Instance.new("Frame", frame)
+    snow.Size = UDim2.new(0, 3, 0, 3)
+    snow.BackgroundColor3 = Color3.new(1, 1, 1)
+    snow.BackgroundTransparency = 0.4
+    snow.Position = UDim2.new(math.random(), 0, -0.1, 0)
+    Instance.new("UICorner", snow).CornerRadius = UDim.new(1, 0)
+    task.spawn(function()
+        local fallSpeed = math.random(2, 5) / 1000
+        while snow.Parent and snow.Position.Y.Scale < 1.1 do
+            if snow.Parent then snow.Position = snow.Position + UDim2.new(0, 0, fallSpeed, 0) end
+            RunService.RenderStepped:Wait()
+        end
+        snow:Destroy()
+    end)
+end
+task.spawn(function() while task.wait(0.3) do if frame.Visible then createSnow() end end end)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 60)
+title.BackgroundTransparency = 1
+title.Text = "GAFIW PROJECT X"
+title.TextColor3 = accentColor
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+
+local tabScroll = Instance.new("ScrollingFrame", frame)
+tabScroll.Size = UDim2.new(1, 0, 0, 45)
+tabScroll.Position = UDim2.new(0, 0, 0, 60)
+tabScroll.BackgroundTransparency = 1
+tabScroll.CanvasSize = UDim2.new(1.5, 0, 0, 0)
+tabScroll.ScrollBarThickness = 0
+
+local contentFrame = Instance.new("ScrollingFrame", frame)
+contentFrame.Size = UDim2.new(1, 0, 1, -115)
+contentFrame.Position = UDim2.new(0, 0, 0, 115)
+contentFrame.BackgroundTransparency = 1
+contentFrame.ScrollBarThickness = 0
+
+-- --- [ LOGIC FUNCTIONS ] ---
+RunService.Stepped:Connect(function()
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+    -- KILL SYSTEM (Reach & Kill All)
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("Handle") then
+        local h = tool.Handle
+        h.CanCollide = false
+        h.Massless = true
+        
+        if killAllEnabled then
+            -- โหมดฆ่าทั้งแมพ
+            h.Size = Vector3.new(500, 500, 500)
+            h.Transparency = 0.8
+        elseif reachEnabled then
+            -- โหมดขยายดาเมจปกติ
+            h.Size = Vector3.new(15, 15, 15)
+            h.Transparency = 0
+            if not h:FindFirstChild("ReachVisual") then
+                local vb = Instance.new("SelectionBox", h)
+                vb.Name, vb.Adornee, vb.Color3, vb.SurfaceTransparency = "ReachVisual", h, Color3.new(1,0,0), 0.8
+            end
+        else
+            -- คืนค่าปกติ
+            h.Size = Vector3.new(1, 5, 2)
+            h.Transparency = 0
+            if h:FindFirstChild("ReachVisual") then h.ReachVisual:Destroy() end
+        end
+    end
+    
+    -- Other Functions (Speed, X-Ray, AirWalk)
+    char.Humanoid.WalkSpeed = speedEnabled and 60 or 16
+    if xrayEnabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= localPlayer and p.Character and not p.Character:FindFirstChild("GafiwXray") then
+                Instance.new("Highlight", p.Character).Name = "GafiwXray"
+            end
+        end
+    end
+    if airWalkEnabled then
+        airPart.Parent, airPart.CanCollide = workspace, true
+        airPart.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(0, -3.5, 0)
+        for _, v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end
+    else airPart.Parent = nil end
+end)
+
+-- --- [ UI BUILDER ] ---
+local function showTab(tabName)
+    for _, v in pairs(contentFrame:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+
+    local function createBtn(text, y, color, callback)
+        local btn = Instance.new("TextButton", contentFrame)
+        btn.Size = UDim2.new(0, 260, 0, 45)
+        btn.Position = UDim2.new(-0.5, 0, 0, y)
+        btn.BackgroundColor3 = color
+        btn.Text = text
+        btn.TextColor3 = accentColor
+        btn.Font = Enum.Font.GothamBold
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+        TweenService:Create(btn, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -130, 0, y)}):Play()
+        btn.MouseButton1Click:Connect(callback)
+    end
+
+    if tabName == "Player" then
+        createBtn("X-RAY: "..(xrayEnabled and "ON" or "OFF"), 10, xrayEnabled and Color3.fromRGB(200, 50, 50) or Color3.fromRGB(46, 180, 113), function() xrayEnabled = not xrayEnabled showTab("Player") end)
+        createBtn("AIR & NOCLIP: "..(airWalkEnabled and "ON" or "OFF"), 65, airWalkEnabled and Color3.fromRGB(150, 50, 150) or Color3.fromRGB(100, 100, 100), function() airWalkEnabled = not airWalkEnabled showTab("Player") end)
+        createBtn("SPEED: "..(speedEnabled and "ON" or "OFF"), 120, speedEnabled and Color3.fromRGB(230, 126, 34) or Color3.fromRGB(44, 62, 80), function() speedEnabled = not speedEnabled showTab("Player") end)
+        createBtn("KILL REACH (15x): "..(reachEnabled and "ON" or "OFF"), 175, reachEnabled and Color3.new(1,0,0) or Color3.fromRGB(60, 60, 60), function() reachEnabled = not reachEnabled killAllEnabled = false showTab("Player") end)
+        createBtn("KILL ALL (500x): "..(killAllEnabled and "ON" or "OFF"), 230, killAllEnabled and Color3.new(0.5,0,0) or Color3.fromRGB(30, 30, 30), function() killAllEnabled = not killAllEnabled reachEnabled = false showTab("Player") end)
+    elseif tabName == "Gunner" then
+        createBtn("GUN ESP: OFF", 10, Color3.fromRGB(52, 73, 94), function() end)
+    elseif tabName == "Graphics" then
+        createBtn("ANTI-LAG: "..(antiLagEnabled and "ON" or "OFF"), 10, antiLagEnabled and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(80, 80, 80), function() antiLagEnabled = not antiLagEnabled showTab("Graphics") end)
+        createBtn("LOW GRAPHICS: "..(lowGraphEnabled and "ON" or "OFF"), 65, lowGraphEnabled and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(80, 80, 80), function() lowGraphEnabled = not lowGraphEnabled Lighting.GlobalShadows = not lowGraphEnabled showTab("Graphics") end)
+    end
+end
+
+local function createTabBtn(name, x)
+    local btn = Instance.new("TextButton", tabScroll)
+    btn.Size = UDim2.new(0, 90, 1, 0)
+    btn.Position = UDim2.new(0, x, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    btn.Text = name
+    btn.TextColor3 = accentColor
+    btn.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", btn)
+    btn.MouseButton1Click:Connect(function() showTab(name) end)
+end
+
+createTabBtn("Player", 5) createTabBtn("Gunner", 100) createTabBtn("Graphics", 195)
+showTab("Player")
+
+toggleBtn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+    if frame.Visible then frame.Size = UDim2.new(0,0,0,0) frame:TweenSize(UDim2.new(0, 300, 0, 500), "Out", "Back", 0.4) end
+end)
+
+-- Draggable
+local dragging, dragStart, startPos
+frame.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging, dragStart, startPos = true, input.Position, frame.Position end end)
+UserInputService.InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - dragStart frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
+UserInputService.InputEnded:Connect(function() dragging = false end)
